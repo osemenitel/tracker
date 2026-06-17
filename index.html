@@ -80,18 +80,26 @@
             border-radius: 8px;
             cursor: pointer;
             transition: 0.2s;
+            margin-bottom: 10px;
         }
         .btn-add {
             background-color: #3498db;
             color: white;
-            margin-bottom: 20px;
         }
         .btn-add:active {
             background-color: #2980b9;
         }
+        .btn-undo {
+            background-color: #f39c12;
+            color: white;
+        }
+        .btn-undo:active {
+            background-color: #d68910;
+        }
         .btn-reset {
             background-color: #ecf0f1;
             color: #7f8c8d;
+            margin-bottom: 0;
         }
         .btn-reset:active {
             background-color: #bdc3c7;
@@ -110,7 +118,7 @@
     
     <div class="stats-box">
         <h2 id="totalDistance">0.000 км</h2>
-        <p>Размотано за смену</p>
+        <p>Разматано за смену</p>
     </div>
 
     <div class="remaining" id="remainingDistance">
@@ -122,6 +130,7 @@
     </div>
 
     <button class="btn-add" onclick="addDistance()">Добавить в копилку</button>
+    <button class="btn-undo" id="btnUndo" onclick="undoLast()" style="display: none;">Отменить последнее</button>
     <button class="btn-reset" onclick="resetShift()">Начать новую смену</button>
 
     <div class="history" id="historyLog">
@@ -131,9 +140,17 @@
 
 <script>
     const GOAL_METERS = 20000; 
-    let currentMeters = parseFloat(localStorage.getItem('shiftTotal')) || 0;
+    
+    // Подтягиваем историю или переносим старые данные из прошлой версии
+    let history = JSON.parse(localStorage.getItem('shiftHistory'));
+    if (!history) {
+        let oldTotal = parseFloat(localStorage.getItem('shiftTotal'));
+        history = (oldTotal && oldTotal > 0) ? [oldTotal] : [];
+        localStorage.setItem('shiftHistory', JSON.stringify(history));
+    }
 
     function updateUI() {
+        let currentMeters = history.reduce((sum, val) => sum + val, 0);
         let totalKm = (currentMeters / 1000).toFixed(3);
         document.getElementById('totalDistance').innerText = totalKm + " км";
 
@@ -147,8 +164,23 @@
         } else {
             let overMeters = Math.abs(remainingMeters);
             let overKm = (overMeters / 1000).toFixed(3);
-            remainingBox.innerText = "🎉 Цель выполнена! Перебор: " + overKm + " км";
+            remainingBox.innerText = "🎉 Цель выполнена! Сверх нормы: " + overKm + " км";
             remainingBox.className = "remaining success";
+        }
+
+        let historyDiv = document.getElementById('historyLog');
+        let undoBtn = document.getElementById('btnUndo');
+        
+        if (history.length === 0) {
+            historyDiv.innerHTML = "<strong>Последние добавления:</strong><br><span style='color:#ccc'>Пока пусто</span>";
+            undoBtn.style.display = 'none'; // Скрываем кнопку отмены, если нечего отменять
+        } else {
+            let historyHtml = "<strong>Последние добавления:</strong><br>";
+            history.forEach(val => {
+                historyHtml += `+ ${val} м<br>`;
+            });
+            historyDiv.innerHTML = historyHtml;
+            undoBtn.style.display = 'block'; // Показываем кнопку отмены
         }
     }
 
@@ -156,27 +188,31 @@
         let inputVal = parseFloat(document.getElementById('distInput').value);
         if (isNaN(inputVal) || inputVal <= 0) return;
 
-        // Теперь всё считается в метрах напрямую
-        currentMeters += inputVal;
-        localStorage.setItem('shiftTotal', currentMeters);
+        history.push(inputVal);
+        localStorage.setItem('shiftHistory', JSON.stringify(history));
         
-        let historyDiv = document.getElementById('historyLog');
-        historyDiv.innerHTML += `+ ${inputVal} м<br>`;
-
         document.getElementById('distInput').value = '';
-        
         updateUI();
     }
 
-    function resetShift() {
-        if(confirm("Точно завершить эту смену и обнулить счетчик?")) {
-            currentMeters = 0;
-            localStorage.setItem('shiftTotal', 0);
-            document.getElementById('historyLog').innerHTML = "<strong>Последние добавления:</strong><br>";
+    function undoLast() {
+        if (history.length > 0) {
+            history.pop(); // Удаляем последнюю запись
+            localStorage.setItem('shiftHistory', JSON.stringify(history));
             updateUI();
         }
     }
 
+    function resetShift() {
+        if(confirm("Точно завершить эту смену и обнулить счетчик?")) {
+            history = [];
+            localStorage.setItem('shiftHistory', JSON.stringify(history));
+            localStorage.removeItem('shiftTotal'); // Подчищаем старые хвосты
+            updateUI();
+        }
+    }
+
+    // Запуск интерфейса
     updateUI();
 </script>
 
