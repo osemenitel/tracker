@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Трекер Смены</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            background: #fff;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 24px;
+            box-sizing: border-box;
+        }
+        h1 {
+            font-size: 24px;
+            text-align: center;
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .stats-box {
+            background: #eafaf1;
+            border: 2px solid #2ecc71;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .stats-box h2 {
+            margin: 0;
+            font-size: 32px;
+            color: #27ae60;
+        }
+        .stats-box p {
+            margin: 5px 0 0 0;
+            color: #555;
+            font-weight: bold;
+        }
+        .remaining {
+            text-align: center;
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .success {
+            color: #27ae60;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            outline: none;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-add {
+            background-color: #3498db;
+            color: white;
+            margin-bottom: 20px;
+        }
+        .btn-add:active {
+            background-color: #2980b9;
+        }
+        .btn-reset {
+            background-color: #ecf0f1;
+            color: #7f8c8d;
+        }
+        .btn-reset:active {
+            background-color: #bdc3c7;
+        }
+        .history {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Трекер Смены 🚚</h1>
+    
+    <div class="stats-box">
+        <h2 id="totalDistance">0.000 км</h2>
+        <p>Пройдено за смену</p>
+    </div>
+
+    <div class="remaining" id="remainingDistance">
+        Осталось до 20 км: 20.000 км
+    </div>
+
+    <div class="input-group">
+        <input type="number" id="distInput" placeholder="Введите метры (например: 1500)" step="1" min="0">
+    </div>
+
+    <button class="btn-add" onclick="addDistance()">Добавить в копилку</button>
+    <button class="btn-reset" onclick="resetShift()">Начать новую смену</button>
+
+    <div class="history" id="historyLog">
+        <strong>Последние добавления:</strong><br>
+    </div>
+</div>
+
+<script>
+    const GOAL_METERS = 20000; 
+    let currentMeters = parseFloat(localStorage.getItem('shiftTotal')) || 0;
+
+    function updateUI() {
+        let totalKm = (currentMeters / 1000).toFixed(3);
+        document.getElementById('totalDistance').innerText = totalKm + " км";
+
+        let remainingBox = document.getElementById('remainingDistance');
+        let remainingMeters = GOAL_METERS - currentMeters;
+
+        if (remainingMeters > 0) {
+            let remKm = (remainingMeters / 1000).toFixed(3);
+            remainingBox.innerText = "Осталось до 20 км: " + remKm + " км";
+            remainingBox.className = "remaining";
+        } else {
+            let overMeters = Math.abs(remainingMeters);
+            let overKm = (overMeters / 1000).toFixed(3);
+            remainingBox.innerText = "🎉 Цель выполнена! Перебор: " + overKm + " км";
+            remainingBox.className = "remaining success";
+        }
+    }
+
+    function addDistance() {
+        let inputVal = parseFloat(document.getElementById('distInput').value);
+        if (isNaN(inputVal) || inputVal <= 0) return;
+
+        // Теперь всё считается в метрах напрямую
+        currentMeters += inputVal;
+        localStorage.setItem('shiftTotal', currentMeters);
+        
+        let historyDiv = document.getElementById('historyLog');
+        historyDiv.innerHTML += `+ ${inputVal} м<br>`;
+
+        document.getElementById('distInput').value = '';
+        
+        updateUI();
+    }
+
+    function resetShift() {
+        if(confirm("Точно завершить эту смену и обнулить счетчик?")) {
+            currentMeters = 0;
+            localStorage.setItem('shiftTotal', 0);
+            document.getElementById('historyLog').innerHTML = "<strong>Последние добавления:</strong><br>";
+            updateUI();
+        }
+    }
+
+    updateUI();
+</script>
+
+</body>
+</html>
