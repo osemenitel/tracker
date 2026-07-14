@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Трекер Смены</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -23,6 +24,7 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             padding: 24px;
             box-sizing: border-box;
+            position: relative; /* Чтобы надпись центрировалась по контейнеру */
         }
         h1 {
             font-size: 24px;
@@ -109,6 +111,32 @@
             font-size: 14px;
             color: #7f8c8d;
         }
+
+        /* Стили для победной надписи */
+        #celebrationText {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            font-weight: 900;
+            color: #e74c3c;
+            text-transform: uppercase;
+            text-align: center;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+            z-index: 9999;
+            pointer-events: none;
+            display: none;
+            width: 100%;
+        }
+
+        @keyframes popAndFade {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            15% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            30% { transform: translate(-50%, -50%) scale(1); }
+            80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1.1); }
+        }
     </style>
 </head>
 <body>
@@ -138,15 +166,37 @@
     </div>
 </div>
 
+<div id="celebrationText">Готово нахуй!</div>
+
 <script>
     const GOAL_METERS = 20000; 
     
-    // Подтягиваем историю или переносим старые данные из прошлой версии
     let history = JSON.parse(localStorage.getItem('shiftHistory'));
     if (!history) {
         let oldTotal = parseFloat(localStorage.getItem('shiftTotal'));
         history = (oldTotal && oldTotal > 0) ? [oldTotal] : [];
         localStorage.setItem('shiftHistory', JSON.stringify(history));
+    }
+
+    // Переменная для отслеживания, был ли уже салют в этой смене
+    let hasCelebrated = localStorage.getItem('shiftCelebrated') === 'true';
+
+    function triggerCelebration() {
+        // Настройки салюта (реалистичные цвета)
+        var defaults = { zIndex: 9998, colors: ['#ff0000', '#00ff00', '#0000ff', '#c0c0c0', '#ffffff'] };
+        
+        confetti(Object.assign({}, defaults, { particleCount: 150, spread: 80, origin: { y: 0.6 } }));
+        setTimeout(() => confetti(Object.assign({}, defaults, { particleCount: 100, spread: 100, origin: { y: 0.5 } })), 500);
+
+        // Показ надписи
+        let textEl = document.getElementById('celebrationText');
+        textEl.style.display = 'block';
+        textEl.style.animation = 'popAndFade 3s forwards';
+        
+        setTimeout(() => {
+            textEl.style.display = 'none';
+            textEl.style.animation = ''; // Сбрасываем анимацию
+        }, 3000);
     }
 
     function updateUI() {
@@ -161,11 +211,23 @@
             let remKm = (remainingMeters / 1000).toFixed(3);
             remainingBox.innerText = "Осталось до 20 км: " + remKm + " км";
             remainingBox.className = "remaining";
+            
+            // Если вдруг откатили метры назад (отменой), разрешаем салют снова
+            hasCelebrated = false;
+            localStorage.setItem('shiftCelebrated', 'false');
+            
         } else {
             let overMeters = Math.abs(remainingMeters);
             let overKm = (overMeters / 1000).toFixed(3);
             remainingBox.innerText = "🎉 Цель выполнена! Сверх нормы: " + overKm + " км";
             remainingBox.className = "remaining success";
+            
+            // Запускаем салют, если в этой смене его еще не было
+            if (!hasCelebrated) {
+                triggerCelebration();
+                hasCelebrated = true;
+                localStorage.setItem('shiftCelebrated', 'true');
+            }
         }
 
         let historyDiv = document.getElementById('historyLog');
@@ -173,14 +235,14 @@
         
         if (history.length === 0) {
             historyDiv.innerHTML = "<strong>Последние добавления:</strong><br><span style='color:#ccc'>Пока пусто</span>";
-            undoBtn.style.display = 'none'; // Скрываем кнопку отмены, если нечего отменять
+            undoBtn.style.display = 'none';
         } else {
             let historyHtml = "<strong>Последние добавления:</strong><br>";
             history.forEach(val => {
                 historyHtml += `+ ${val} м<br>`;
             });
             historyDiv.innerHTML = historyHtml;
-            undoBtn.style.display = 'block'; // Показываем кнопку отмены
+            undoBtn.style.display = 'block';
         }
     }
 
@@ -197,7 +259,7 @@
 
     function undoLast() {
         if (history.length > 0) {
-            history.pop(); // Удаляем последнюю запись
+            history.pop();
             localStorage.setItem('shiftHistory', JSON.stringify(history));
             updateUI();
         }
@@ -206,13 +268,13 @@
     function resetShift() {
         if(confirm("Точно завершить эту смену и обнулить счетчик?")) {
             history = [];
+            hasCelebrated = false;
             localStorage.setItem('shiftHistory', JSON.stringify(history));
-            localStorage.removeItem('shiftTotal'); // Подчищаем старые хвосты
+            localStorage.setItem('shiftCelebrated', 'false');
             updateUI();
         }
     }
 
-    // Запуск интерфейса
     updateUI();
 </script>
 
